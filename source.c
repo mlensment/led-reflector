@@ -23,11 +23,6 @@ int rLedOn = true;
 
 //temperature sensor related stuff
 int sensorPin = 3;
-const int numReadings = 10;
-int readings[numReadings];
-int index = 0;
-int total = 0;
-int average = 0;
 float temp;
 long measureInterval = 3000;
 
@@ -70,19 +65,23 @@ void loop()
         previousMillis = currentMillis;
         temp = getTemperature();
       }
-        
-      if(temp < 15) {
-        lightBlues(255);
-      } else if(temp > 20) {
-        lightReds(255);
-      } else {
-        calcBrightness(temp);
 
-        lightReds(curBrightness);
-        delay(8);
-        lightBlues(255 - curBrightness);
-        delay(8);
+      if(temp > 18) {
+        lightReds(255);
       }
+        
+      // if(temp < 15) {
+      //   lightBlues(255);
+      // } else if(temp > 20) {
+      //   lightReds(255);
+      // } else {
+      //   calcBrightness(temp);
+
+      //   lightReds(curBrightness);
+      //   delay(8);
+      //   lightBlues(255 - curBrightness);
+      //   delay(8);
+      // }
 
     break;
 
@@ -103,24 +102,36 @@ void loop()
 
     case 3:
       //fading police
-      rBrightness = rBrightness + (fadeAmt * rMul);
-      bBrightness = bBrightness + (fadeAmt * bMul);
-      
-      if(rBrightness >= 255) {
-        rBrightness = 255;
-        rMul = -1;
-        bMul = 1;
-      } else if(bBrightness >= 255) {
-        bBrightness = 255;
-        rMul = 1;
-        bMul = -1;
+      if(rLedOn) {
+        lightReds(curBrightness);
+      } else {
+        lightBlues(curBrightness);
       }
-
-      lightReds(rBrightness);
-      lightBlues(bBrightness);
+      
+      // change the brightness for next time through the loop:
+      curBrightness = curBrightness + fadeAmt;
+      
+      if(curBrightness == 0) {
+        rLedOn = !rLedOn;
+      }
+      
+      // reverse the direction of the fading at the ends of the fade: 
+      if (curBrightness <= 0 || curBrightness >= 255) {
+        fadeAmt = -fadeAmt ; 
+      }
+      // wait for 30 milliseconds to see the dimming effect    
+      delay(30);
     break;
 
     case 4:
+      //rapid police
+      lightReds(255);
+      delay(50);
+      lightBlues(255);
+      delay(50);
+    break;
+
+    case 5:
       //blink together
       currentMillis = millis();
      
@@ -147,8 +158,10 @@ void lightReds(int val) {
 
 void lightBlues(int val) {
   digitalWrite(rLed, LOW);
+  digitalWrite(bLed, HIGH);
   OCR1B = val;
 }
+
 
 void calcBrightness(float temp) {
   if(curBrightness == nextBrightness) {
@@ -168,25 +181,12 @@ void calcBrightness(float temp) {
 }
 
 float getTemperature() {
-  OCR1B = 127;
-  digitalWrite(bLed, HIGH);
-  digitalWrite(rLed, LOW);
-  delay(10);
-  
-  total -= readings[index];
-  readings[index] = analogRead(sensorPin);
-  total= total + readings[index];       
-  index = index + 1;                    
+  lightBlues(127);
+  delay(30);
  
-  if (index >= numReadings) {
-    index = 0;
-  }              
-                              
-  average = total / numReadings;        
-  float voltage = average * 5;
-  voltage /= 1024.0;
-  
+  float voltage = analogRead(sensorPin) * 3.3 / 1024.0;
   float temperatureC = (voltage - 0.5) * 100;
+  
   return temperatureC;
 }
 
