@@ -1,3 +1,5 @@
+#include <avr/sleep.h>
+
 //LEDs
 int rLed = 0;
 int bLed = 4;
@@ -31,6 +33,9 @@ long previousMillis = 0;
 unsigned long currentMillis;
 long interval = 1000;
 
+//sleep
+int sleepStatus = 0;
+
 void setup()   
 {
   TCCR1 = _BV (CS10);
@@ -54,7 +59,10 @@ void loop()
       //go into power saving mode
       OCR1B = 0;
       digitalWrite(bLed, LOW);
-      digitalWrite(rLed, LOW);
+      digitalWrite(rLed, LOW);      
+      
+      ADCSRA = ADCSRA & 0b01111111; /* Disable ADC, then sleep! */
+      sleepNow();     // sleep function called here
     break;
 
     case 1:
@@ -66,7 +74,7 @@ void loop()
         temp = getTemperature();
       }
 
-      if(temp > 18) {
+      if(temp > 0) {
         lightReds(255);
       }
         
@@ -117,7 +125,7 @@ void loop()
       
       // reverse the direction of the fading at the ends of the fade: 
       if (curBrightness <= 0 || curBrightness >= 255) {
-        fadeAmt = -fadeAmt ; 
+        fadeAmt = -fadeAmt; 
       }
       // wait for 30 milliseconds to see the dimming effect    
       delay(30);
@@ -162,24 +170,6 @@ void lightBlues(int val) {
   OCR1B = val;
 }
 
-
-void calcBrightness(float temp) {
-  if(curBrightness == nextBrightness) {
-    temp -= 15;
-    
-    nextBrightness = (int) (temp * 255 / 5);
-    if(nextBrightness > 255) {
-       nextBrightness = 255;
-    }
-    if(nextBrightness < 0) {
-       nextBrightness = 0; 
-    }
-    brightnessStep = (nextBrightness > curBrightness) ? 1 : -1;
-  } else {
-    curBrightness += brightnessStep; 
-  }
-}
-
 float getTemperature() {
   lightBlues(127);
   delay(30);
@@ -199,4 +189,29 @@ void readButton() {
   } else {
     buttonRead = false;
   }
+}
+
+void sleepNow()
+{
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+
+    sleep_enable();          // enables the sleep bit in the mcucr register
+                             // so sleep is possible. just a safety pin 
+
+    attachInterrupt(0,wakeUpNow, LOW); // use interrupt 0 (pin 2) and run function
+                                       // wakeUpNow when pin 2 gets LOW 
+
+    sleep_mode();            // here the device is actually put to sleep!!
+                             // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
+
+    sleep_disable();         // first thing after waking from sleep:
+                             // disable sleep...
+    detachInterrupt(0);      // disables interrupt 0 on pin 2 so the 
+                             // wakeUpNow code will not be executed 
+                             // during normal running time.
+}
+
+void wakeUpNow()        // here the interrupt is handled after wakeup
+{
+  lightReds(255);
 }
