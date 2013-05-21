@@ -1,7 +1,5 @@
 #include <avr/sleep.h>
-//#include <SoftwareSerial.h>
 
-//SoftwareSerial mySerial(-1, 1); // RX, TX
 //LEDs
 int rLed = 0;
 int bLed = 4;
@@ -40,15 +38,10 @@ void setup()
   
   GTCCR |= _BV (PWM1B) | _BV(COM1B1); //Enable PWM 1B
 
-  //TODO
-  //refactor outputs and inputs
-  DDRB = 0x3f;
-  /* Data direction register B is 0xff which means, all are outputs */
+  DDRB = 0x3f; //outputs
+
   pinMode(sensorPin, INPUT);
   pinMode(buttonPin, INPUT_PULLUP);
-
-  //mySerial.begin(2400);
-
 }
 
 void loop()
@@ -63,7 +56,7 @@ void loop()
       digitalWrite(rLed, LOW);      
       
       ADCSRA = ADCSRA & 0b01111111; /* Disable ADC, then sleep! */
-      sleepNow();     // sleep function called here
+      sleepNow();
       ADCSRA = ADCSRA | 0b10000000;
       break;
 
@@ -76,7 +69,6 @@ void loop()
         temp = getTemperature();
         rBrightness = (int) ((temp + 10) * (255 / 20));
         bBrightness = (int) ((255 - rBrightness) * 127 / 255);
-        //mySerial.println(temp);
       }
       
       if(temp < -10) {
@@ -108,6 +100,7 @@ void loop()
     break;
 
     case 3:
+      //fading police
       curBrightness = curBrightness + fadeAmt;
       curBrightness = (curBrightness >= 255) ? 255 : curBrightness;
       curBrightness = (curBrightness <= 0) ? 0 : curBrightness;
@@ -116,12 +109,10 @@ void loop()
         rLedOn = !rLedOn;
       }
       
-      // reverse the direction of the fading at the ends of the fade: 
       if (curBrightness <= 0 || curBrightness >= 255) {
         fadeAmt = -fadeAmt; 
       }
     
-      //fading police
       if(rLedOn) {
         lightReds(curBrightness);
       } else {
@@ -157,21 +148,25 @@ void loop()
     break;
     
     case 6:
+      //light only reds
       lightReds(255);
       lightBlues(0);
     break;
     
     case 7:
+      //light only blues
       lightReds(0);
-      lightBlues(127);      
+      delay(8);
+      lightBlues(127);
+      delay(8);
     break;
     
     case 8:
+      //fade together
       curBrightness = curBrightness + fadeAmt;
       curBrightness = (curBrightness >= 255) ? 255 : curBrightness;
       curBrightness = (curBrightness <= 0) ? 0 : curBrightness;
       
-      // reverse the direction of the fading at the ends of the fade: 
       if (curBrightness <= 0 || curBrightness >= 255) {
         fadeAmt = -fadeAmt; 
       }
