@@ -1,5 +1,7 @@
 #include <avr/sleep.h>
+#include <SoftwareSerial.h>
 
+SoftwareSerial mySerial(-1, 1); // RX, TX
 //LEDs
 int rLed = 0;
 int bLed = 4;
@@ -38,17 +40,20 @@ int sleepStatus = 0;
 
 void setup()   
 {
-  TCCR1 = _BV (CS10);
-  GTCCR = _BV (COM1B1) | _BV(PWM1B);
+  TCCR1 |= _BV (CS10);
   
+  GTCCR |= _BV (PWM1B) | _BV(COM1B1); //Enable PWM 1B
+
   //TODO
   //refactor outputs and inputs
-  DDRB = 0xff;
+  DDRB = 0x3f;
   /* Data direction register B is 0xff which means, all are outputs */
   pinMode(sensorPin, INPUT);
-  pinMode(buttonPin, INPUT);
-  digitalWrite(buttonPin, HIGH);
-}     
+  pinMode(buttonPin, INPUT_PULLUP);
+
+  mySerial.begin(2400);
+
+}
 
 void loop()
 {
@@ -63,7 +68,8 @@ void loop()
       
       ADCSRA = ADCSRA & 0b01111111; /* Disable ADC, then sleep! */
       sleepNow();     // sleep function called here
-    break;
+      ADCSRA = ADCSRA | 0b10000000;
+      break;
 
     case 1:
       //measure temperature
@@ -72,6 +78,7 @@ void loop()
       if(currentMillis - previousMillis > measureInterval) { 
         previousMillis = currentMillis;
         temp = getTemperature();
+        mySerial.println(temp);
       }
 
       if(temp > 0) {
@@ -172,9 +179,14 @@ void lightBlues(int val) {
 
 float getTemperature() {
   lightBlues(127);
-  delay(30);
+  
+  GTCCR = GTCCR & 0b11011111; /* Clear COM1B1 */
+  delay(2);
  
   float voltage = analogRead(sensorPin) * 3.3 / 1024.0;
+  
+  GTCCR = GTCCR | 0b00100000; /* set bit COM1B1 */
+  
   float temperatureC = (voltage - 0.5) * 100;
   
   return temperatureC;
