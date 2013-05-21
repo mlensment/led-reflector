@@ -1,14 +1,14 @@
 #include <avr/sleep.h>
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 
-SoftwareSerial mySerial(-1, 1); // RX, TX
+//SoftwareSerial mySerial(-1, 1); // RX, TX
 //LEDs
 int rLed = 0;
 int bLed = 4;
 
 //current program and program count
 int curProgram = 0;
-int progCount = 4;
+int progCount = 8;
 
 //button stuff
 int buttonPin = 2;
@@ -18,11 +18,7 @@ int buttonRead = false;
 int rBrightness = 255;
 int bBrightness = 0;
 int curBrightness = 0;
-int nextBrightness = 0;
-int brightnessStep;
 int fadeAmt = 5;
-int rMul = -1;
-int bMul = 1;
 int rLedOn = true;
 
 //temperature sensor related stuff
@@ -51,7 +47,7 @@ void setup()
   pinMode(sensorPin, INPUT);
   pinMode(buttonPin, INPUT_PULLUP);
 
-  mySerial.begin(2400);
+  //mySerial.begin(2400);
 
 }
 
@@ -78,25 +74,21 @@ void loop()
       if(currentMillis - previousMillis > measureInterval) { 
         previousMillis = currentMillis;
         temp = getTemperature();
-        mySerial.println(temp);
+        rBrightness = (int) ((temp + 10) * (255 / 20));
+        bBrightness = (int) ((255 - rBrightness) * 127 / 255);
+        //mySerial.println(temp);
       }
-
-      if(temp > 0) {
+      
+      if(temp < -10) {
+        lightBlues(255);
+      } else if(temp > 10) {
         lightReds(255);
+      } else {
+        lightReds(rBrightness);
+        delay(8);
+        lightBlues(bBrightness);
+        delay(8);
       }
-        
-      // if(temp < 15) {
-      //   lightBlues(255);
-      // } else if(temp > 20) {
-      //   lightReds(255);
-      // } else {
-      //   calcBrightness(temp);
-
-      //   lightReds(curBrightness);
-      //   delay(8);
-      //   lightBlues(255 - curBrightness);
-      //   delay(8);
-      // }
 
     break;
 
@@ -116,16 +108,10 @@ void loop()
     break;
 
     case 3:
-      //fading police
-      if(rLedOn) {
-        lightReds(curBrightness);
-      } else {
-        lightBlues(curBrightness);
-      }
-      
-      // change the brightness for next time through the loop:
       curBrightness = curBrightness + fadeAmt;
-      
+      curBrightness = (curBrightness >= 255) ? 255 : curBrightness;
+      curBrightness = (curBrightness <= 0) ? 0 : curBrightness;
+    
       if(curBrightness == 0) {
         rLedOn = !rLedOn;
       }
@@ -134,8 +120,15 @@ void loop()
       if (curBrightness <= 0 || curBrightness >= 255) {
         fadeAmt = -fadeAmt; 
       }
-      // wait for 30 milliseconds to see the dimming effect    
-      delay(30);
+    
+      //fading police
+      if(rLedOn) {
+        lightReds(curBrightness);
+      } else {
+        lightBlues(curBrightness);
+      }
+ 
+      delay(20);
     break;
 
     case 4:
@@ -161,6 +154,33 @@ void loop()
       
       lightReds(curBrightness);
       lightBlues(curBrightness);
+    break;
+    
+    case 6:
+      lightReds(255);
+      lightBlues(0);
+    break;
+    
+    case 7:
+      lightReds(0);
+      lightBlues(127);      
+    break;
+    
+    case 8:
+      curBrightness = curBrightness + fadeAmt;
+      curBrightness = (curBrightness >= 255) ? 255 : curBrightness;
+      curBrightness = (curBrightness <= 0) ? 0 : curBrightness;
+      
+      // reverse the direction of the fading at the ends of the fade: 
+      if (curBrightness <= 0 || curBrightness >= 255) {
+        fadeAmt = -fadeAmt; 
+      }
+    
+        lightReds(curBrightness);
+        delay(8);
+        bBrightness = (curBrightness > 127) ? 127 : curBrightness;
+        lightBlues(bBrightness);
+        delay(8);
     break;
   }
 }
@@ -196,7 +216,7 @@ void readButton() {
   int buttonState = digitalRead(buttonPin);
   if(buttonState == LOW) {
     if(!buttonRead)
-      curProgram = (curProgram < 5) ? curProgram + 1 : 0;
+      curProgram = (curProgram < progCount) ? curProgram + 1 : 0;
     buttonRead = true;
   } else {
     buttonRead = false;
